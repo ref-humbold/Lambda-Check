@@ -52,13 +52,13 @@ match exp with
 | E_var v => c v
 | E_type e t => if check c e t then Some t else None
 | E_lambda v t e => match infer (add_ctx c v t) e with
-                  | Some u => Some (T_func t u)
-                  | None => None
-                  end
+                    | Some u => Some (T_func t u)
+                    | None => None
+                    end
 | E_app e1 e2 => match infer c e1 with
-               | Some (T_func t u) => if check c e2 t then Some u else None
-               | _ => None
-               end
+                 | Some (T_func t u) => if check c e2 t then Some u else None
+                 | _ => None
+                 end
 | E_if b e1 e2 => if check c b T_bool
                 then match infer c e1 with
                      | Some t => if check c e2 t then Some t else None
@@ -69,27 +69,24 @@ end
 with check (c : context_L) (exp : expr_L) (tp : type_L) : bool :=
 match exp with
 | E_true | E_false => match tp with
-                    | T_bool => true
-                    | _ => false
-                    end
+                      | T_bool => true
+                      | _ => false
+                      end
 | E_var v => match c v with
-           | Some t' => eq_type t' tp
-           | None => false
-           end
-| E_if b e1 e2 => check c b T_bool && check c e1 tp && check c e2 tp
+             | Some t' => eq_type t' tp
+             | None => false
+             end
 | E_type e t => eq_type t tp && check c e t
 | E_lambda v t e => match tp with
-                  | T_func t' u' => eq_type t' t
-                                    && (match infer (add_ctx c v t) e with
-                                        | Some u'' => eq_type u'' u'
-                                        | _ => false
-                                        end)
-                  | _ => false
-                  end
+                    | T_func t' u' => eq_type t' t
+                                      && check (add_ctx c v t) e u'
+                    | _ => false
+                    end
 | E_app e1 e2 => match infer c e1 with
-               | Some (T_func t' u') => eq_type u' tp && check c e2 t'
-               | _ => false
-               end
+                 | Some (T_func t' u') => eq_type u' tp && check c e2 t'
+                 | _ => false
+                 end
+| E_if b e1 e2 => check c b T_bool && check c e1 tp && check c e2 tp
 end.
 
 Lemma andb_true :
@@ -109,57 +106,41 @@ Ltac split_andb H := apply andb_true in H
                        let g1 := fresh "G" in
                        destruct H as [g0 g1].
 
-Ltac rewrite_refl H0 H1 := rewrite H0 ; rewrite H1 ; reflexivity.
+Ltac rewrite_refl H := rewrite H ; reflexivity.
 
-Lemma eq_type_refl :
-forall (t : type_L), eq_type t t = true.
-Proof.
-induction t
-; simpl.
-* reflexivity.
-* rewrite_refl IHt1 IHt2.
-Qed.
+Ltac rewrite_refl_2 H0 H1 := rewrite H0 ; rewrite H1 ; reflexivity.
 
-Lemma eq_type_sym :
-forall (t0 t1 : type_L), eq_type t0 t1 = true -> eq_type t1 t0 = true.
+Lemma eq_type_eq :
+forall (t0 t1 : type_L), eq_type t0 t1 = true <-> t0 = t1.
 Proof.
 induction t0
 ; destruct t1
-; simpl
+; split
 ; intros
-; try assumption.
-specialize (IHt0_1 t1_1).
-specialize (IHt0_2 t1_2).
-split_andb H.
-apply IHt0_1 in G.
-apply IHt0_2 in G0.
-rewrite_refl G G0.
+; try reflexivity.
+* inversion H.
+* inversion H.
+* inversion H.
+* inversion H.
+* inversion H.
+  split_andb H1.
+  destruct (IHt0_1 t1_1) as [IHt0_1L IHt0_1P].
+  destruct (IHt0_2 t1_2) as [IHt0_2L IHt0_2P].
+  rewrite_refl_2 (IHt0_1L G) (IHt0_2L G0).
+* simpl.
+  destruct (IHt0_1 t1_1) as [IHt0_1L IHt0_1P].
+  destruct (IHt0_2 t1_2) as [IHt0_2L IHt0_2P].
+  rewrite IHt0_1P
+  ; try rewrite IHt0_2P
+  ; inversion H
+  ; reflexivity.
 Qed.
 
-Lemma eq_type_trans :
-forall (t0 t1 t2 : type_L), eq_type t0 t1 = true -> eq_type t1 t2 = true
-  -> eq_type t0 t2 = true.
-Proof.
-induction t0
-; destruct t1
-; destruct t2
-; intros
-; try assumption
-; inversion H.
-inversion H0.
-split_andb H2.
-split_andb H3.
-specialize (IHt0_1 t1_1 t2_1 G G1).
-specialize (IHt0_2 t1_2 t2_2 G0 G2).
-simpl.
-rewrite IHt0_1.
-rewrite IHt0_2.
-rewrite_refl G G0.
-Qed.
+Ltac eq H := apply eq_type_eq in H.
 
 Lemma check_on_eq_type :
-forall (t0 t1 : type_L) (c : context_L) (e : expr_L),
-  eq_type t0 t1 = true -> check c e t0 = true -> check c e t1 = true.
+forall (e : expr_L) (t0 t1 : type_L) (c : context_L),
+  t0 = t1 -> check c e t0 = true -> check c e t1 = true.
 Proof.
 induction e
 ; destruct t0
@@ -170,29 +151,28 @@ induction e
 * simpl in H0.
   simpl.
   destruct (c v).
-** apply eq_type_trans with (t1:=T_func t0_1 t0_2)
-   ; assumption.
+** eq H0.
+   apply (eq_trans H0) in H.
+   eq H.
+   assumption.
 ** assumption.
 * simpl in H0.
   split_andb H0.
-  apply (eq_type_trans t (T_func t0_1 t0_2) (T_func t1_1 t1_2)) in G
-  ; try assumption.
   simpl.
-  rewrite_refl G G0.
-* simpl in H0.
-  simpl.
-  destruct (infer (add_ctx c v t) e).
-** simpl in H.
-   split_andb H.
-   split_andb H0.
-   apply eq_type_sym in G.
-   apply (eq_type_trans t1_1 t0_1 t) in G
-   ; try assumption.
-   apply (eq_type_trans t0 t0_2 t1_2) in G2
-   ; try assumption.
-   rewrite_refl G G2.
-** rewrite andb_false_r in H0.
-   discriminate.
+  eq G.
+  apply (eq_trans G) in H.
+  apply eq_type_eq in H.
+  rewrite_refl_2 H G0.
+* simpl.
+  inversion H.
+  simpl in H0.
+  split_andb H0.
+  eq G.
+  symmetry in H2.
+  apply (eq_trans H2) in G.
+  eq G.
+  rewrite H3 in G0.
+  rewrite_refl_2 G G0.
 * simpl in H0.
   simpl.
   destruct (infer c e1)
@@ -200,22 +180,113 @@ induction e
   destruct t
   ; try assumption.
   split_andb H0.
-  apply (eq_type_trans t2 (T_func t0_1 t0_2) (T_func t1_1 t1_2)) in G
-  ; try assumption.
-  rewrite_refl G G0.
+  eq G.
+  apply (eq_trans G) in H.
+  eq H.
+  rewrite_refl_2 H G0.
 * simpl in H0.
   split_andb H0.
   split_andb G.
   simpl.
-  specialize (IHe2 H G2).
-  specialize (IHe3 H G0).
+  specialize (IHe2 (T_func t0_1 t0_2) (T_func t1_1 t1_2) c H G2).
+  specialize (IHe3 (T_func t0_1 t0_2) (T_func t1_1 t1_2) c H G0).
   rewrite G1.
-  rewrite_refl IHe2 IHe3.
+  rewrite_refl_2 IHe2 IHe3.
+Qed.
+
+Lemma check_is_infer :
+forall (e : expr_L) (c : context_L) (t : type_L),
+  check c e t = true -> infer c e = Some t.
+Proof.
+induction e
+; intros.
+* destruct t
+  ; simpl in *.
+** reflexivity.
+** discriminate.
+* destruct t
+  ; simpl in *.
+** reflexivity.
+** discriminate.
+* simpl in *.
+  destruct (c v)
+  ; try discriminate.
+  eq H.
+  rewrite_refl H.
+* inversion H.
+  split_andb H1.
+  simpl.
+  rewrite G0.
+  eq G.
+  rewrite_refl G.
+* simpl in H.
+  destruct t0
+  ; try discriminate.
+  split_andb H.
+  eq G.
+  specialize (IHe (add_ctx c v t) t0_2 G0).
+  simpl.
+  rewrite_refl_2 IHe G.
+* simpl in H.
+  simpl.
+  destruct (infer c e1)
+  ; try destruct t0
+  ; try discriminate.
+  split_andb H.
+  rewrite G0.
+  eq G.
+  rewrite_refl G.
+* simpl in H.
+  split_andb H.
+  split_andb G.
+  simpl.
+  rewrite G1.
+  rewrite_refl_2 (IHe2 c t G2) G0.
 Qed.
 
 Theorem typing_correct :
-forall (c : context_L) (e : expr_L), option {t : type_L | check c e t = true}.
+forall (e : expr_L) (c : context_L), option {t : type_L | check c e t = true}.
 Proof.
+induction e
+; intros.
+* refine (Some (exist _ T_bool _)).
+  simpl.
+  reflexivity.
+* refine (Some (exist _ T_bool _)).
+  simpl.
+  reflexivity.
+* simpl.
+  destruct (c v).
+** refine (Some (exist _ t _)).
+   apply eq_type_eq.
+   reflexivity.
+** refine None.
+* destruct (IHe c).
+** destruct s.
+   destruct (sumbool_of_bool (eq_type t x)).
+*** refine (Some (exist _ x _)).
+    simpl.
+    rewrite e1.
+    simpl.
+    apply (check_on_eq_type e x t).
+**** eq e1.
+     symmetry.
+     assumption.
+**** assumption.
+*** refine None.
+** refine None.
+* specialize (IHe (add_ctx c v t)).
+  destruct IHe.
+** destruct s.
+   refine (Some (exist _ (T_func t x) _)).
+   simpl.
+   rewrite e0.
+   rewrite andb_true_r.
+   apply eq_type_eq.
+   reflexivity.
+** refine None.
+* specialize (IHe1 c).
+  specialize (IHe2 c).
 
 Abort.
 
