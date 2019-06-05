@@ -145,15 +145,17 @@ destruct (c v).
   reflexivity.
 Qed.
 
-Theorem typing_correct :
+Theorem typing_correct_c :
 forall (e : expr_L) (c : context_L), option {t : type_L | check c e t = true}.
 Proof.
 induction e
 ; intros.
 * refine (Some (exist _ T_bool _)).
-  constructor.
+  simpl.
+  reflexivity.
 * refine (Some (exist _ T_bool _)).
-  constructor.
+  simpl.
+  reflexivity.
 * destruct (context_var_dec c v).
 ** destruct s.
    refine (Some (exist _ x _)).
@@ -188,6 +190,7 @@ induction e
       refine (Some (exist _ x0_2 _)).
       simpl in *.
       (* ????? *)
+      admit.
 ***** refine None.
 *** refine None.
 ** refine None.
@@ -199,15 +202,19 @@ induction e
      destruct (IHe3 c).
 ***** destruct s.
       destruct (sumbool_of_bool (eq_type x x0)).
-****** eq_subst e.
+****** eq_subst e5.
        refine (Some (exist _ x0 _)).
-       constructor
+       simpl.
+       apply andb_true_iff.
+       split
+       ; try apply andb_true_iff
+       ; try split
        ; try assumption.
 ****** refine None.
 ***** refine None.
 **** refine None.
 *** refine None.
 ** refine None.
-Qed.
+Admitted.
 
 End LambdaCurry.

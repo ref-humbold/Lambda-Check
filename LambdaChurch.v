@@ -177,29 +177,43 @@ refine (
                            Some (exist _ (T_func t u) _)
                          | None => None
                          end
-    | E_app e1 e2 => match tp e1 ct with
-                     | Some (exist _ (T_func t1 u1) d1) =>
-                       match tp e2 ct with
-                       | Some (exist _ t2 d2) =>
-                         if eq_type t1 t2 then Some (exist _ u1 _) else None
-                       | _ => None
-                       end
-                     | _ => None
+    | E_app e1 e2 => match tp e1 ct, tp e2 ct with
+                     | Some d1, Some d2 => _
+                     | _, _ => None
                      end
-    | E_if b e1 e2 => match tp b ct with
-                      | Some (exist _ T_bool db) =>
-                        match tp e1 ct with
-                        | Some (exist _ t1 d1) =>
-                          match tp e2 ct with
-                          | Some (exist _ t2 d2) =>
-                            if eq_type t1 t2 then Some (exist _ t1 _) else None
-                          | None => None
-                          end
-                        | None => None
-                        end
-                      | _ => None
+    | E_if b e1 e2 => match tp b ct, tp e1 ct, tp e2 ct with
+                      | Some (exist _ tb db), Some d1, Some d2 => _
+                      | _, _, _ => None
                       end
     end).
-Abort.
+* constructor.
+* constructor.
+* constructor.
+  assumption.
+* constructor.
+  assumption.
+* destruct d1.
+  destruct x.
+** refine None.
+** destruct d2.
+   destruct (sumbool_of_bool (eq_type x x1)).
+*** apply eq_type_eq in e.
+    subst.
+    refine (Some (exist _ x2 _)).
+    apply Type_app with (t:=x1)
+    ; assumption.
+*** refine None.
+* destruct tb.
+** destruct d1.
+   destruct d2.
+   destruct (sumbool_of_bool (eq_type x x0)).
+*** apply eq_type_eq in e.
+    subst.
+    refine (Some (exist _ x0 _)).
+    constructor
+    ; assumption.
+*** refine None.
+** refine None.
+Qed.
 
 End LambdaChurch.
