@@ -124,9 +124,12 @@ destruct (c v).
   reflexivity.
 Qed.
 
-Theorem typing_correct_c :
-forall (e : expr_L) (c : context_L), option {t : type_L | check c e t}.
+Theorem make_typecheck :
+forall (e : expr_L) (c : context_L), option {t : type_L | check c e t = true}.
 Proof.
+
+Abort.
+(*
 induction e
 ; intros.
 * refine (Some (exist _ T_bool _)).
@@ -136,18 +139,22 @@ induction e
 * destruct (context_var_dec c v).
 ** destruct s.
    refine (Some (exist _ x _)).
-   constructor.
-   constructor.
-   assumption.
+   simpl.
+   rewrite e.
+   apply eq_type_eq.
+   reflexivity.
 ** refine None.
 * destruct (IHe c).
 ** destruct s.
    destruct (sumbool_of_bool (eq_type t x)).
 *** refine (Some (exist _ t _)).
-    constructor.
-    constructor.
-    eq_subst e0.
-    assumption.
+    simpl.
+    eq_subst e1.
+    rewrite e0.
+    apply andb_true_iff.
+    split
+    ; try apply eq_type_eq
+    ; reflexivity.
 *** refine None.
 ** refine None.
 * refine None.
@@ -159,13 +166,11 @@ induction e
     destruct x0.
 **** refine None.
 **** destruct (sumbool_of_bool (eq_type x x0_1)).
-***** eq_subst e.
+***** eq_subst e3.
       refine (Some (exist _ x0_2 _)).
-      constructor.
-      eapply In_app with (t:=x0_1).
+      simpl in *.
       (* ????? *)
-****** admit.
-****** assumption.
+      admit.
 ***** refine None.
 *** refine None.
 ** refine None.
@@ -177,15 +182,19 @@ induction e
      destruct (IHe3 c).
 ***** destruct s.
       destruct (sumbool_of_bool (eq_type x x0)).
-****** eq_subst e.
+****** eq_subst e5.
        refine (Some (exist _ x0 _)).
-       constructor
+       simpl.
+       apply andb_true_iff.
+       split
+       ; try apply andb_true_iff
+       ; try split
        ; try assumption.
 ****** refine None.
 ***** refine None.
 **** refine None.
 *** refine None.
 ** refine None.
-Admitted.
+*)
 
 End LambdaCurry.

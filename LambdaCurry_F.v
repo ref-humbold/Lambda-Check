@@ -145,9 +145,12 @@ destruct (c v).
   reflexivity.
 Qed.
 
-Theorem typing_correct_c :
+Theorem make_typecheck :
 forall (e : expr_L) (c : context_L), option {t : type_L | check c e t = true}.
 Proof.
+
+Abort.
+(*
 induction e
 ; intros.
 * refine (Some (exist _ T_bool _)).
@@ -215,6 +218,6 @@ induction e
 **** refine None.
 *** refine None.
 ** refine None.
-Admitted.
+*)
 
 End LambdaCurry.

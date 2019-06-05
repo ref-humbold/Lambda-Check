@@ -104,7 +104,7 @@ destruct (c v).
   reflexivity.
 Qed.
 
-Theorem typing_correct_1 :
+Theorem make_typecheck_1 :
 forall (e : expr_L) (c : context_L), option {t : type_L | typing c e t}.
 Proof.
 induction e
@@ -160,7 +160,7 @@ induction e
 ** refine None.
 Qed.
 
-Theorem typing_correct_2 :
+Theorem make_typecheck_2 :
 forall (e : expr_L) (c : context_L), option {t : type_L | typing c e t}.
 Proof.
 refine (
