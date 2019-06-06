@@ -70,29 +70,36 @@ match exp with
                     | None => None
                     end
 | E_app e1 e2 => match infer c e1 with
-                 | Some (T_func t' u') => 
-                   match infer c e2 with
-                   | Some t'' => if eq_type t' t''
-                                 then Some u'
-                                 else None
-                   | None => None
-                   end
+                 | Some (T_func t u) => if check c e2 t then Some u else None
                  | _ => None
                  end
-| E_if b e1 e2 => match infer c b with
-                  | Some T_bool =>
-                    match infer c e1 with
-                    | Some t' => 
-                      match infer c e2 with
-                      | Some t'' => if eq_type t' t''
-                                    then Some t'
-                                    else None
-                      | None => None
+| E_if b e1 e2 => if check c b T_bool
+                then match infer c e1 with
+                     | Some t => if check c e2 t then Some t else None
+                     | None => None
+                     end
+                else None
+end
+with check (c : context_L) (exp : expr_L) (tp : type_L) : bool :=
+match exp with
+| E_true | E_false => match tp with
+                      | T_bool => true
+                      | _ => false
                       end
-                    | None => None
+| E_var v => match c v with
+             | Some t' => eq_type t' tp
+             | None => false
+             end
+| E_lambda v t e => match tp with
+                    | T_func t' u' => eq_type t' t
+                                      && check (add_ctx c v t) e u'
+                    | _ => false
                     end
-                  | _ => None
-                  end
+| E_app e1 e2 => match infer c e1 with
+                 | Some (T_func t' u') => eq_type u' tp && check c e2 t'
+                 | _ => false
+                 end
+| E_if b e1 e2 => check c b T_bool && check c e1 tp && check c e2 tp
 end.
 
 (* Lemmas *)
@@ -163,6 +170,116 @@ Ltac rewrite_refl_2 H1 H2 := rewrite H1 ; rewrite H2 ; reflexivity.
 Ltac eq H := apply eq_type_eq in H.
 
 Ltac eq_subst H := eq H ; subst.
+
+Ltac eq_type_and_true := apply andb_true_iff
+                         ; split
+                         ; try apply eq_type_eq
+                         ; reflexivity.
+
+Lemma check_is_infer :
+forall (e : expr_L) (c : context_L) (t : type_L),
+  check c e t = true -> infer c e = Some t.
+Proof.
+induction e
+; intros.
+* destruct t
+  ; simpl in *.
+** reflexivity.
+** discriminate.
+* destruct t
+  ; simpl in *.
+** reflexivity.
+** discriminate.
+* simpl in *.
+  destruct (c v)
+  ; try discriminate.
+  eq H.
+  rewrite_refl H.
+* simpl in H.
+  destruct t0
+  ; try discriminate.
+  split_andb H.
+  eq G.
+  specialize (IHe (add_ctx c v t) t0_2 G0).
+  simpl.
+  rewrite_refl_2 IHe G.
+* simpl in H.
+  simpl.
+  destruct (infer c e1)
+  ; try destruct t0
+  ; try discriminate.
+  split_andb H.
+  rewrite G0.
+  eq G.
+  rewrite_refl G.
+* simpl in H.
+  split_andb H.
+  split_andb G.
+  simpl.
+  rewrite G1.
+  rewrite_refl_2 (IHe2 c t G2) G0.
+Qed.
+
+Lemma infer_is_check :
+forall (e : expr_L) (c : context_L) (t : type_L),
+  infer c e = Some t -> check c e t = true.
+Proof.
+induction e
+; intros.
+* simpl in H.
+  inversion H.
+  reflexivity.
+* simpl in H.
+  inversion H.
+  reflexivity.
+* simpl in *.
+  rewrite H.
+  apply eq_type_eq.
+  reflexivity.
+* simpl in *.
+  remember (infer (add_ctx c v t) e) as I.
+  destruct I
+  ; try discriminate.
+  destruct t0
+  ; try inversion H.
+  subst.
+  symmetry in HeqI.
+  apply IHe in HeqI.
+  rewrite HeqI.
+  eq_type_and_true.
+* simpl in *.
+  destruct (infer c e1)
+  ; try discriminate.
+  destruct t0
+  ; try discriminate.
+  destruct (check c e2 t0_1)
+  ; try discriminate.
+  inversion H.
+  subst.
+  eq_type_and_true.
+* simpl in *.
+  destruct (check c e1 T_bool)
+  ; try discriminate.
+  simpl.
+  remember (infer c e2) as I.
+  destruct I
+  ; try discriminate.
+  symmetry in HeqI.
+  apply IHe2 in HeqI.
+  destruct (sumbool_of_bool (eq_type t0 t)).
+** eq_subst e.
+   rewrite HeqI.
+   simpl.
+   destruct (check c e3 t)
+   ; try discriminate
+   ; reflexivity.
+** apply not_true_iff_false in e.
+   destruct (check c e3 t0)
+   ; try discriminate.
+   inversion H.
+   eq H1.
+   contradiction.
+Qed.
 
 Lemma typing_is_infer :
 forall (e : expr_L) (c : context_L) (t : type_L),

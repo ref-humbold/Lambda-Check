@@ -106,7 +106,7 @@ induction t0
 * inversion H.
 * inversion H.
 * inversion H.
-  apply andb_true_iff in H1.
+  apply eq_type_and_true_iff in H1.
   destruct H1 as [G G0].
   destruct (IHt0_1 t1_1) as [IHt0_1L IHt0_1P].
   destruct (IHt0_2 t1_2) as [IHt0_2L IHt0_2P].
@@ -124,10 +124,10 @@ Qed.
 
 Ltac eq H := apply eq_type_eq in H ; subst.
 
-Ltac andb_true := apply andb_true_iff
-                  ; split
-                  ; try apply eq_type_eq
-                  ; reflexivity.
+Ltac eq_type_and_true := apply andb_true_iff
+                         ; split
+                         ; try apply eq_type_eq
+                         ; reflexivity.
 
 Lemma context_var_dec :
 forall (c : context_L) (v : var_L),
@@ -174,7 +174,7 @@ Proof.
      refine (Some _).
      simpl.
      rewrite e0.
-     andb_true.
+     eq_type_and_true.
 **** refine None.
 *** refine None.
 ** destruct t.
@@ -195,7 +195,7 @@ Proof.
        simpl.
        rewrite e.
        rewrite e0.
-       andb_true.
+       eq_type_and_true.
 ****** refine None.
 ***** refine None.
 *** refine None.
