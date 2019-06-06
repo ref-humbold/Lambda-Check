@@ -93,15 +93,6 @@ end.
 
 (* Lemmas *)
 
-Ltac split_andb H := apply andb_true_iff in H
-                     ; let g0 := fresh "G" in
-                       let g1 := fresh "G" in
-                       destruct H as [g0 g1].
-
-Ltac rewrite_refl H := rewrite H ; reflexivity.
-
-Ltac rewrite_refl_2 H0 H1 := rewrite H0 ; rewrite H1 ; reflexivity.
-
 Lemma eq_type_eq :
 forall (t0 t1 : type_L), eq_type t0 t1 = true <-> t0 = t1.
 Proof.
@@ -115,10 +106,13 @@ induction t0
 * inversion H.
 * inversion H.
 * inversion H.
-  split_andb H1.
+  apply andb_true_iff in H1.
+  destruct H1 as [G G0].
   destruct (IHt0_1 t1_1) as [IHt0_1L IHt0_1P].
   destruct (IHt0_2 t1_2) as [IHt0_2L IHt0_2P].
-  rewrite_refl_2 (IHt0_1L G) (IHt0_2L G0).
+  rewrite (IHt0_1L G).
+  rewrite (IHt0_2L G0).
+  reflexivity.
 * simpl.
   destruct (IHt0_1 t1_1) as [IHt0_1L IHt0_1P].
   destruct (IHt0_2 t1_2) as [IHt0_2L IHt0_2P].
@@ -128,13 +122,16 @@ induction t0
   ; reflexivity.
 Qed.
 
-Ltac eq H := apply eq_type_eq in H.
+Ltac eq H := apply eq_type_eq in H ; subst.
 
-Ltac eq_subst H := eq H ; subst.
+Ltac andb_true := apply andb_true_iff
+                  ; split
+                  ; try apply eq_type_eq
+                  ; reflexivity.
 
 Lemma context_var_dec :
 forall (c : context_L) (v : var_L),
-  {t : type_L | c v = Some t} + { c v = None}.
+  {t : type_L | c v = Some t} + {c v = None}.
 Proof.
 intros.
 destruct (c v).
@@ -146,78 +143,120 @@ destruct (c v).
 Qed.
 
 Theorem make_typecheck :
-forall (e : expr_L) (c : context_L), option {t : type_L | check c e t = true}.
+forall (e : expr_L) (c : context_L) (t : type_L), option (check c e t = true)
+with make_typeinfer :
+forall (e : expr_L) (c : context_L), option {t : type_L | infer c e = Some t}.
 Proof.
-
-Abort.
-(*
-induction e
-; intros.
-* refine (Some (exist _ T_bool _)).
-  simpl.
-  reflexivity.
-* refine (Some (exist _ T_bool _)).
-  simpl.
-  reflexivity.
-* destruct (context_var_dec c v).
-** destruct s.
-   refine (Some (exist _ x _)).
-   simpl.
-   rewrite e.
-   apply eq_type_eq.
-   reflexivity.
-** refine None.
-* destruct (IHe c).
-** destruct s.
-   destruct (sumbool_of_bool (eq_type t x)).
-*** refine (Some (exist _ t _)).
-    simpl.
-    eq_subst e1.
-    rewrite e0.
-    apply andb_true_iff.
-    split
-    ; try apply eq_type_eq
-    ; reflexivity.
+* induction e
+  ; intros.
+** destruct t.
+*** refine (Some _).
+    reflexivity.
 *** refine None.
-** refine None.
-* refine None.
-(* ????? *)
-* destruct (IHe2 c).
-** destruct s.
-   destruct (IHe1 c).
+** destruct t.
+*** refine (Some _).
+    reflexivity.
+*** refine None.
+** destruct (context_var_dec c v).
 *** destruct s.
-    destruct x0.
+    destruct (sumbool_of_bool (eq_type t x)).
+**** eq e0.
+     refine (Some _).
+     simpl.
+     rewrite e.
+     apply eq_type_eq.
+     reflexivity.
 **** refine None.
-**** destruct (sumbool_of_bool (eq_type x x0_1)).
-***** eq_subst e3.
-      refine (Some (exist _ x0_2 _)).
-      simpl in *.
-      (* ????? *)
-      admit.
-***** refine None.
 *** refine None.
-** refine None.
-* destruct (IHe1 c).
-** destruct s.
-   destruct x.
-*** destruct (IHe2 c).
-**** destruct s.
-     destruct (IHe3 c).
-***** destruct s.
-      destruct (sumbool_of_bool (eq_type x x0)).
-****** eq_subst e5.
-       refine (Some (exist _ x0 _)).
+** destruct (IHe c t0).
+*** destruct (sumbool_of_bool (eq_type t t0)).
+**** eq e1.
+     refine (Some _).
+     simpl.
+     rewrite e0.
+     andb_true.
+**** refine None.
+*** refine None.
+** destruct t.
+*** refine None.
+*** destruct (IHe (add_ctx c v t1) t2).
+**** refine (Some _).
+     simpl.
+     assumption.
+**** refine None.
+** destruct (make_typeinfer e1 c).
+*** destruct s.
+    destruct x.
+**** refine None.
+**** destruct (sumbool_of_bool (eq_type t x2)).
+***** eq e0.
+      destruct (IHe2 c x1).
+****** refine (Some _).
        simpl.
-       apply andb_true_iff.
-       split
-       ; try apply andb_true_iff
-       ; try split
-       ; try assumption.
+       rewrite e.
+       rewrite e0.
+       andb_true.
 ****** refine None.
 ***** refine None.
+*** refine None.
+** destruct (IHe1 c T_bool).
+*** destruct (IHe2 c t).
+**** destruct (IHe3 c t).
+***** refine (Some _).
+      simpl.
+      apply andb_true_iff.
+      split
+      ; try assumption.
+      apply andb_true_iff.
+      split
+      ; assumption.
+***** refine None.
 **** refine None.
 *** refine None.
+* induction e
+  ; intros.
+** refine (Some (exist _ T_bool _)).
+   reflexivity.
+** refine (Some (exist _ T_bool _)).
+   reflexivity.
+** destruct (context_var_dec c v).
+*** destruct s.
+    refine (Some (exist _ x _)).
+    simpl.
+    assumption.
+*** refine None.
+** destruct (make_typecheck e c t).
+*** refine (Some (exist _ t _)).
+    simpl.
+    rewrite e0.
+    reflexivity.
+*** refine None.
 ** refine None.
-*)
+** destruct (IHe1 c).
+*** destruct s.
+    destruct x.
+**** refine None.
+**** destruct (make_typecheck e2 c x1).
+***** refine (Some (exist _ x2 _)).
+      simpl.
+      rewrite e.
+      rewrite e0.
+      reflexivity.
+***** refine None.
+*** refine None.
+** destruct (make_typecheck e1 c T_bool).
+*** destruct (IHe2 c).
+**** destruct s.
+     destruct (make_typecheck e3 c x).
+***** refine (Some (exist _ x _)).
+      simpl.
+      rewrite e.
+      rewrite e0.
+      rewrite e4.
+      reflexivity.
+***** refine None.
+**** refine None.
+*** refine None.
+Qed.
 
 End LambdaCurry.
