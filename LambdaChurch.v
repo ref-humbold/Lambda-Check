@@ -60,18 +60,18 @@ match t, u with
 | _, _ => false
 end.
 
-Fixpoint infer (c : context_L) (exp : expr_L) : option type_L :=
+Fixpoint do_typing (c : context_L) (exp : expr_L) : option type_L :=
 match exp with
 | E_true => Some T_bool
 | E_false => Some T_bool
 | E_var v => c v
-| E_lambda v t e => match infer (add_ctx c v t) e with
+| E_lambda v t e => match do_typing (add_ctx c v t) e with
                     | Some u => Some (T_func t u)
                     | None => None
                     end
-| E_app e1 e2 => match infer c e1 with
+| E_app e1 e2 => match do_typing c e1 with
                  | Some (T_func t' u') => 
-                   match infer c e2 with
+                   match do_typing c e2 with
                    | Some t'' => if eq_type t' t''
                                  then Some u'
                                  else None
@@ -79,11 +79,11 @@ match exp with
                    end
                  | _ => None
                  end
-| E_if b e1 e2 => match infer c b with
+| E_if b e1 e2 => match do_typing c b with
                   | Some T_bool =>
-                    match infer c e1 with
+                    match do_typing c e1 with
                     | Some t' => 
-                      match infer c e2 with
+                      match do_typing c e2 with
                       | Some t'' => if eq_type t' t''
                                     then Some t'
                                     else None
@@ -127,15 +127,21 @@ induction t0
 Qed.
 
 Lemma andb_true :
-forall a b, andb a b = true -> a = true /\ b = true.
+forall a b, andb a b = true <-> a = true /\ b = true.
 Proof.
-destruct a
-; destruct b
-; intros
-; simpl in *
-; try discriminate
-; split
-; assumption.
+split.
+* destruct a
+  ; destruct b
+  ; intros
+  ; simpl in *
+  ; try discriminate
+  ; split
+  ; assumption.
+* intros.
+  destruct H.
+  rewrite H.
+  rewrite H0.
+  reflexivity.
 Qed.
 
 Lemma context_var_dec :
@@ -160,13 +166,15 @@ Ltac rewrite_refl H := rewrite H ; reflexivity.
 
 Ltac rewrite_refl_2 H1 H2 := rewrite H1 ; rewrite H2 ; reflexivity.
 
-Ltac eq H := apply eq_type_eq in H.
+Ltac eq H := apply eq_type_eq in H ; subst.
 
-Ltac eq_subst H := eq H ; subst.
+Ltac eq_reflexivity H := eq H ; reflexivity.
 
-Lemma typing_is_infer :
+(* Equivalence proofs *)
+
+Lemma typing_is_do_typing :
 forall (e : expr_L) (c : context_L) (t : type_L),
-  typing c e t -> infer c e = Some t.
+  typing c e t -> do_typing c e = Some t.
 Proof.
 induction 1
 ; intros.
@@ -181,21 +189,19 @@ induction 1
   rewrite IHtyping2.
   assert (t = t)
   ; try reflexivity.
-  eq H1.
-  rewrite_refl H1.
+  eq_reflexivity H1.
 * simpl.
   rewrite IHtyping1.
   rewrite IHtyping2.
   rewrite IHtyping3.
   assert (t = t)
   ; try reflexivity.
-  eq H2.
-  rewrite_refl H2.
+  eq_reflexivity H2.
 Qed.
 
-Lemma infer_is_typing :
+Lemma do_typing_is_typing :
 forall (e : expr_L) (c : context_L) (t : type_L),
-  infer c e = Some t -> typing c e t.
+  do_typing c e = Some t -> typing c e t.
 Proof.
 induction e
 ; intros.
@@ -211,7 +217,7 @@ induction e
   constructor.
   assumption.
 * simpl in H.
-  remember (infer (add_ctx c v t) e) as I.
+  remember (do_typing (add_ctx c v t) e) as I.
   destruct I
   ; try discriminate.
   inversion H.
@@ -221,15 +227,15 @@ induction e
   symmetry.
   assumption.
 * inversion H.
-  remember (infer c e1) as I1.
-  remember (infer c e2) as I2.
+  remember (do_typing c e1) as I1.
+  remember (do_typing c e2) as I2.
   destruct I1
   ; try destruct t0
   ; try destruct I2
   ; try destruct (sumbool_of_bool (eq_type t0_1 t0))
   ; try rewrite e in H1
   ; try discriminate.
-  eq_subst e.
+  eq e.
   inversion H1.
   subst.
   apply Type_app with (t:=t0).
@@ -240,9 +246,9 @@ induction e
    symmetry.
    assumption.
 * simpl in H.
-  remember (infer c e1) as I1.
-  remember (infer c e2) as I2.
-  remember (infer c e3) as I3.
+  remember (do_typing c e1) as I1.
+  remember (do_typing c e2) as I2.
+  remember (do_typing c e3) as I3.
   destruct I1
   ; try destruct t0
   ; try destruct I2
@@ -250,7 +256,7 @@ induction e
   ; try destruct (sumbool_of_bool (eq_type t0 t1))
   ; try rewrite e in H
   ; try discriminate.
-  eq_subst e.
+  eq e.
   inversion H.
   subst.
   constructor.
