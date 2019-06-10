@@ -97,51 +97,36 @@ end.
 
 (* Lemmas *)
 
+Ltac rewrite_refl H := rewrite H ; reflexivity.
+
+Ltac rewrite_refl_2 H1 H2 := rewrite H1 ; rewrite H2 ; reflexivity.
+
 Lemma eq_type_eq :
 forall (t0 t1 : type_L), eq_type t0 t1 = true <-> t0 = t1.
 Proof.
-induction t0
-; destruct t1
-; split
-; intros
-; try reflexivity.
-* inversion H.
-* inversion H.
-* inversion H.
-* inversion H.
+induction t0 ; destruct t1 ; split ; intros ; try reflexivity
+; try solve [inversion H].
 * inversion H.
   apply andb_true_iff in H1.
   destruct H1 as [G G0].
   destruct (IHt0_1 t1_1) as [IHt0_1L IHt0_1P].
   destruct (IHt0_2 t1_2) as [IHt0_2L IHt0_2P].
-  rewrite (IHt0_1L G).
-  rewrite (IHt0_2L G0).
-  reflexivity.
+  rewrite_refl_2 (IHt0_1L G) (IHt0_2L G0).
 * simpl.
   destruct (IHt0_1 t1_1) as [IHt0_1L IHt0_1P].
   destruct (IHt0_2 t1_2) as [IHt0_2L IHt0_2P].
-  rewrite IHt0_1P
-  ; try rewrite IHt0_2P
-  ; inversion H
-  ; reflexivity.
+  rewrite IHt0_1P ; try rewrite IHt0_2P ; inversion H ; reflexivity.
 Qed.
 
 Lemma andb_true :
 forall a b, andb a b = true <-> a = true /\ b = true.
 Proof.
 split.
-* destruct a
-  ; destruct b
-  ; intros
-  ; simpl in *
-  ; try discriminate
-  ; split
+* destruct a ; destruct b ; intros ; simpl in * ; try discriminate ; split
   ; assumption.
 * intros.
   destruct H.
-  rewrite H.
-  rewrite H0.
-  reflexivity.
+  rewrite_refl_2 H H0.
 Qed.
 
 Lemma context_var_dec :
@@ -162,10 +147,6 @@ Ltac split_andb H := apply andb_true in H
                        let g1 := fresh "G" in
                        destruct H as [g0 g1].
 
-Ltac rewrite_refl H := rewrite H ; reflexivity.
-
-Ltac rewrite_refl_2 H1 H2 := rewrite H1 ; rewrite H2 ; reflexivity.
-
 Ltac eq H := apply eq_type_eq in H ; subst.
 
 Ltac eq_reflexivity H := eq H ; reflexivity.
@@ -176,8 +157,7 @@ Lemma typing_is_do_typing :
 forall (e : expr_L) (c : context_L) (t : type_L),
   typing c e t -> do_typing c e = Some t.
 Proof.
-induction 1
-; intros.
+induction 1 ; intros.
 * reflexivity.
 * reflexivity.
 * simpl in *.
@@ -187,37 +167,42 @@ induction 1
 * simpl.
   rewrite IHtyping1.
   rewrite IHtyping2.
-  assert (t = t)
-  ; try reflexivity.
-  eq_reflexivity H1.
+  remember (eq_type t t) as B.
+  destruct B ; try reflexivity.
+  symmetry in HeqB.
+  apply not_true_iff_false in HeqB.
+  exfalso.
+  apply HeqB.
+  apply eq_type_eq.
+  reflexivity.
 * simpl.
   rewrite IHtyping1.
   rewrite IHtyping2.
   rewrite IHtyping3.
-  assert (t = t)
-  ; try reflexivity.
-  eq_reflexivity H2.
+  remember (eq_type t t) as B.
+  destruct B ; try reflexivity.
+  symmetry in HeqB.
+  apply not_true_iff_false in HeqB.
+  exfalso.
+  apply HeqB.
+  apply eq_type_eq.
+  reflexivity.
 Qed.
 
 Lemma do_typing_is_typing :
 forall (e : expr_L) (c : context_L) (t : type_L),
   do_typing c e = Some t -> typing c e t.
 Proof.
-induction e
-; intros.
-* simpl in H.
-  inversion H.
+induction e ; intros ; simpl in H.
+* inversion H.
   subst.
   constructor.
-* simpl in H.
-  inversion H.
+* inversion H.
   subst.
   constructor.
-* simpl in H.
-  constructor.
+* constructor.
   assumption.
-* simpl in H.
-  remember (do_typing (add_ctx c v t) e) as I.
+* remember (do_typing (add_ctx c v t) e) as I.
   destruct I
   ; try discriminate.
   inversion H.
@@ -226,49 +211,26 @@ induction e
   apply IHe.
   symmetry.
   assumption.
-* inversion H.
-  remember (do_typing c e1) as I1.
+* remember (do_typing c e1) as I1.
   remember (do_typing c e2) as I2.
-  destruct I1
-  ; try destruct t0
-  ; try destruct I2
-  ; try destruct (sumbool_of_bool (eq_type t0_1 t0))
-  ; try rewrite e in H1
-  ; try discriminate.
-  eq e.
-  inversion H1.
-  subst.
-  apply Type_app with (t:=t0).
-** apply IHe1.
-   symmetry.
-   assumption.
-** apply IHe2.
-   symmetry.
-   assumption.
-* simpl in H.
-  remember (do_typing c e1) as I1.
-  remember (do_typing c e2) as I2.
-  remember (do_typing c e3) as I3.
-  destruct I1
-  ; try destruct t0
-  ; try destruct I2
-  ; try destruct I3
-  ; try destruct (sumbool_of_bool (eq_type t0 t1))
-  ; try rewrite e in H
+  destruct I1 ; try destruct t0 ; try destruct I2
+  ; try destruct (sumbool_of_bool (eq_type t0_1 t0)) ; try rewrite e in H
   ; try discriminate.
   eq e.
   inversion H.
   subst.
-  constructor.
-** apply IHe1.
-   symmetry.
-   assumption.
-** apply IHe2.
-   symmetry.
-   assumption.
-** apply IHe3.
-   symmetry.
-   assumption.
+  apply Type_app with (t:=t0) ; [apply IHe1 | apply IHe2] ; symmetry
+  ; assumption.
+* remember (do_typing c e1) as I1.
+  remember (do_typing c e2) as I2.
+  remember (do_typing c e3) as I3.
+  destruct I1 ; try destruct t0 ; try destruct I2 ; try destruct I3
+  ; try destruct (sumbool_of_bool (eq_type t0 t1)) ; try rewrite e in H
+  ; try discriminate.
+  eq e.
+  inversion H.
+  subst.
+  constructor ; [apply IHe1 | apply IHe2 | apply IHe3] ; symmetry ; assumption.
 Qed.
 
 (* Typing proof *)
@@ -276,8 +238,7 @@ Qed.
 Theorem make_typecheck_1 :
 forall (e : expr_L) (c : context_L), option {t : type_L | typing c e t}.
 Proof.
-induction e
-; intros.
+induction e ; intros.
 * refine (Some (exist _ T_bool _)).
   constructor.
 * refine (Some (exist _ T_bool _)).
@@ -304,8 +265,7 @@ induction e
 ***** apply eq_type_eq in e.
       subst.
       refine (Some (exist _ x0_2 _)).
-      apply Type_app with (t:=x0_1)
-      ; assumption.
+      apply Type_app with (t:=x0_1) ; assumption.
 ***** refine None.
 *** refine None.
 ** refine None.
@@ -320,8 +280,7 @@ induction e
 ****** apply eq_type_eq in e.
        subst.
        refine (Some (exist _ x0 _)).
-       constructor
-       ; try assumption.
+       constructor ; assumption.
 ****** refine None.
 ***** refine None.
 **** refine None.
@@ -369,8 +328,7 @@ refine (
 *** apply eq_type_eq in e.
     subst.
     refine (Some (exist _ x2 _)).
-    apply Type_app with (t:=x1)
-    ; assumption.
+    apply Type_app with (t:=x1) ; assumption.
 *** refine None.
 * destruct tb.
 ** destruct d1.
@@ -379,8 +337,7 @@ refine (
 *** apply eq_type_eq in e.
     subst.
     refine (Some (exist _ x0 _)).
-    constructor
-    ; assumption.
+    constructor ; assumption.
 *** refine None.
 ** refine None.
 Qed.
