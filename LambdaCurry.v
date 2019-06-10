@@ -297,6 +297,108 @@ Proof.
    rewrite_refl H1.
 Qed.
 
+Theorem do_check_is_check :
+forall (e : expr_L) (c : context_L) (t : type_L),
+  do_check c e t = true -> check c e t
+with do_infer_is_infer :
+forall (e : expr_L) (c : context_L) (t : type_L),
+  do_infer c e = Some t -> infer c e t.
+Proof.
+* induction e
+  ; intros.
+** destruct t
+   ; [constructor | inversion H].
+** destruct t
+   ; [constructor | inversion H].
+** simpl in H.
+   constructor.
+   constructor.
+   destruct (c v)
+   ; [eq_reflexivity H | discriminate].
+** simpl in H.
+   split_andb H.
+   eq G.
+   constructor.
+   constructor.
+   apply IHe.
+   assumption.
+** simpl in H.
+   destruct t
+   ; try discriminate.
+   constructor.
+   apply IHe.
+   assumption.
+** simpl in H.
+   constructor.
+   remember (do_infer c e1) as I.
+   destruct I
+   ; try destruct t0
+   ; try discriminate.
+   split_andb H.
+   eq G.
+   apply In_app with (t:=t0_1).
+*** apply do_infer_is_infer.
+    symmetry.
+    assumption.
+*** apply IHe2.
+    assumption.
+** simpl in H.
+   split_andb H.
+   split_andb G.
+   constructor
+   ; [apply IHe1 | apply IHe2 | apply IHe3]
+   ; assumption.
+* induction e
+  ; intros.
+** destruct t
+   ; [constructor | inversion H].
+** destruct t
+   ; [constructor | inversion H].
+** simpl in H.
+   constructor.
+   assumption.
+** simpl in H.
+   remember (do_check c e t) as C.
+   destruct C
+   ; try discriminate.
+   inversion H.
+   subst.
+   constructor.
+   apply do_check_is_check.
+   symmetry.
+   assumption.
+** discriminate.
+** simpl in H.
+   remember (do_infer c e1) as I.
+   destruct I
+   ; try destruct t0
+   ; try discriminate.
+   remember (do_check c e2 t0_1) as C.
+   destruct C
+   ; try discriminate.
+   inversion H.
+   subst.
+   apply In_app with (t:= t0_1)
+   ; [apply IHe1 | apply do_check_is_check]
+   ; symmetry
+   ; assumption.
+** simpl in H.
+   remember (do_check c e1 T_bool) as C1.
+   remember (do_infer c e2) as I2.
+   destruct C1
+   ; try destruct I2
+   ; try discriminate.
+   remember (do_check c e3 t0) as C3.
+   destruct C3
+   ; try discriminate.
+   inversion H.
+   subst.
+   constructor
+   ; [apply do_check_is_check | apply IHe2 | apply do_check_is_check]
+   ; symmetry
+   ; assumption.
+Qed.
+
 (* Typing proof *)
 
 Theorem make_typecheck :
